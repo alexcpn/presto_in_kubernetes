@@ -1,0 +1,61 @@
+# From https://github.com/joshuarobinson/trino-on-k8s
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metastore
+spec:
+  ports:
+  - port: 9083
+  selector:
+    app: metastore
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metastore
+spec:
+  selector:
+    matchLabels:
+      app: metastore
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: metastore
+    spec:
+      containers:
+      - name: metastore
+        image: alexcpn/hivemetastore:3.13
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: my-s3-keys
+              key: access-key
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-s3-keys
+              key: secret-key
+        ports:
+        - containerPort: 9083
+        volumeMounts:
+        - name: metastore-cfg-vol
+          mountPath: /opt/apache-hive-metastore-3.1.3-bin/conf/metastore-site.xml
+          subPath: metastore-site.xml
+        - name: metastore-cfg-vol
+          mountPath: /opt/hadoop-3.3.0/etc/hadoop/core-site.xml
+          subPath: core-site.xml
+        command: ["/opt/apache-hive-metastore-3.1.3-bin/bin/start-metastore"]
+        args: ["-p", "9083"]
+        #resources:
+        #  requests:
+        #    memory: "32G"
+        #    cpu: 4
+        imagePullPolicy: Always
+      volumes:
+        - name: metastore-cfg-vol
+          configMap:
+            name: metastore-cfg
