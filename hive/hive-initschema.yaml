@@ -10,6 +10,6 @@ spec:
         image: alexcpn/hivemetastore:3.13
         command: ["/opt/apache-hive-metastore-3.1.3-bin/bin/schematool"]
         args: ["--verbose" ,"-initSchema" , "-dbType", "postgres" , "-userName", "postgres",
-          "-passWord", "postgresSuperUserPsw" , "-url", "jdbc:postgresql://10.244.0.78:5432/metadata"]
+          "-passWord", "postgresSuperUserPsw" , "-url", "jdbc:postgresql://10.244.1.4:5432/metadata"]
       restartPolicy: Never
   backoffLimit: 4

@@ -1,0 +1,156 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trino
+spec:
+  ports:
+  - port: 8080
+  selector:
+    app: trino-coordinator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino-coordinator
+spec:
+  selector:
+    matchLabels:
+      app: trino-coordinator
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: trino-coordinator
+    spec:
+      containers:
+      - name: trino
+        image: trinodb/trino:355
+        ports:
+        - containerPort: 8080
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: my-s3-keys
+              key: access-key
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-s3-keys
+              key: secret-key
+        volumeMounts:
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/jvm.config
+          subPath: jvm.config
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/config.properties
+          subPath: config.properties.coordinator
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/node.properties
+          subPath: node.properties
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/catalog/hive.properties
+          subPath: hive.properties
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/catalog/iceberg.properties
+          subPath: iceberg.properties
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/catalog/mysql.properties
+          subPath: mysql.properties
+        resources:
+          requests:
+            memory: "2G"
+        #    cpu: 4
+        imagePullPolicy: Always
+      volumes:
+        - name: trino-cfg-vol
+          configMap:
+            name: trino-configs
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: trino-worker
+spec:
+  serviceName: trino-worker 
+  replicas: 10
+  selector:
+    matchLabels:
+      app: trino-worker
+  template:
+    metadata:
+      labels:
+        app: trino-worker
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: trino
+        image: trinodb/trino:355
+        ports:
+        - containerPort: 8080
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: my-s3-keys
+              key: access-key
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-s3-keys
+              key: secret-key
+        volumeMounts:
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/jvm.config
+          subPath: jvm.config
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/config.properties
+          subPath: config.properties.worker
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/node.properties
+          subPath: node.properties
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/catalog/hive.properties
+          subPath: hive.properties
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/catalog/iceberg.properties
+          subPath: iceberg.properties
+        - name: trino-cfg-vol
+          mountPath: /etc/trino/catalog/mysql.properties
+          subPath: mysql.properties
+        - name: trino-tmp-data
+          mountPath: /tmp
+        resources:
+          requests:
+            memory: "2G"
+        #    cpu: 12
+        imagePullPolicy: Always
+      volumes:
+        - name: trino-cfg-vol
+          configMap:
+            name: trino-configs
+  volumeClaimTemplates:
+  - metadata:
+      name: trino-tmp-data
+    spec:
+      storageClassName: standard
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: trino-cli
+spec:
+  containers:
+  - name: trino-cli
+    image: trinodb/trino:355
+    command: ["tail", "-f", "/dev/null"]
+    imagePullPolicy: Always
+  restartPolicy: Always
