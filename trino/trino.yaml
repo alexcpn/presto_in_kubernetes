@@ -61,7 +61,7 @@ spec:
           subPath: mysql.properties
         resources:
           requests:
-            memory: "2G"
+            memory: "1G"
         #    cpu: 4
         imagePullPolicy: Always
       volumes:
@@ -75,7 +75,7 @@ metadata:
   name: trino-worker
 spec:
   serviceName: trino-worker 
-  replicas: 10
+  replicas: 2
   selector:
     matchLabels:
       app: trino-worker
@@ -125,7 +125,7 @@ spec:
           mountPath: /tmp
         resources:
           requests:
-            memory: "2G"
+            memory: "1G"
         #    cpu: 12
         imagePullPolicy: Always
       volumes:
@@ -150,7 +150,7 @@ metadata:
 spec:
   containers:
   - name: trino-cli
-    image: trinodb/trino:355
+    image: trinodb/trino:385
     command: ["tail", "-f", "/dev/null"]
     imagePullPolicy: Always
   restartPolicy: Always

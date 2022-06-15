@@ -135,14 +135,15 @@ Get the Mino/S3 EP
 kubectl get ep  
 
 alex@pop-os:~/coding/preso_hive$ kubectl get ep
-NAME                      ENDPOINTS                                                        AGE
-kubernetes                172.18.0.3:6443                                                  23h
-metastore                 10.244.1.37:9083                                                 16m
-mino-test-minio           10.244.1.33:9000,10.244.1.34:9000,10.244.1.35:9000 + 1 more...   18h
-mino-test-minio-console   10.244.1.33:9001,10.244.1.34:9001,10.244.1.35:9001 + 1 more...   18h
-mino-test-minio-svc       10.244.1.33:9000,10.244.1.34:9000,10.244.1.35:9000 + 1 more...   18h
-mypostgres                10.244.1.4:5432                                                  23h
-mypostgres-replica        10.244.1.6:5432,10.244.1.8:5432                                  23h
+NAME                      ENDPOINTS                                                      AGE
+kubernetes                172.18.0.3:6443                                                29h
+metastore                 10.244.1.27:9083                                               139m
+mino-test-minio           10.244.1.11:9000,10.244.1.4:9000,10.244.1.8:9000 + 1 more...   24h
+mino-test-minio-console   10.244.1.11:9001,10.244.1.4:9001,10.244.1.8:9001 + 1 more...   24h
+mino-test-minio-svc       10.244.1.11:9000,10.244.1.4:9000,10.244.1.8:9000 + 1 more...   24h
+mypostgres                10.244.1.5:5432                                                29h
+mypostgres-replica        10.244.1.6:5432,10.244.1.7:5432                                29h
+trino                     10.244.1.24:8080                                               3h43m
 ```
 
 Update in `hive\metastroe-cfg.yaml` for S3
@@ -176,5 +177,21 @@ Port forward to see the UI
 ```
 kubectl   port-forward svc/trino 8080  &
 ```
+
+# Part 2
+
+Create a table in S3 via Trino
+
+
+Acess Trino CLI
+
+Give the EP of trino in the server argument below
+
+```
+kubectl exec -it trino-cli /bin/bash 
+/bin/trino --server 10.244.1.28:8080 --catalog hive --schema default
+```
+
+CREATE SCHEMA test2 WITH (location = ‘s3a://test/tes1/’);
 
 

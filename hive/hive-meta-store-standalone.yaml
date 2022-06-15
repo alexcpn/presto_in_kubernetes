@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: metastore
-        image: alexcpn/hivemetastore:3.13
+        image: alexcpn/hivemetastore:3.1.3.1
         env:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
@@ -52,7 +52,7 @@ spec:
         args: ["-p", "9083"]
         resources:
           requests:
-            memory: "2G"
+            memory: "1G"
         #    cpu: 4
         imagePullPolicy: Always
       volumes:

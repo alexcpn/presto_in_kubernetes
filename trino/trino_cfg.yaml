@@ -22,9 +22,9 @@ data:
     coordinator=true
     node-scheduler.include-coordinator=false
     http-server.http.port=8080
-    query.max-memory=200GB
-    query.max-memory-per-node=8GB
-    query.max-total-memory-per-node=10GB
+    query.max-memory=1GB
+    query.max-memory-per-node=1GB
+    query.max-total-memory-per-node=1GB
     query.max-stage-count=200
     task.writer-count=4
     discovery-server.enabled=true
@@ -32,9 +32,8 @@ data:
   config.properties.worker: |-
     coordinator=false
     http-server.http.port=8080
-    query.max-memory=200GB
-    query.max-memory-per-node=10GB
-    query.max-total-memory-per-node=10GB
+    query.max-memory=1GB
+    query.max-memory-per-node=1GB
     query.max-stage-count=200
     task.writer-count=4
     discovery.uri=http://trino:8080
@@ -45,16 +44,16 @@ data:
     query-max-spill-per-node=1TB
   hive.properties: |-
     connector.name=hive-hadoop2
-    hive.metastore.uri=thrift://10.244.1.37:9083
+    hive.metastore.uri=thrift://10.244.1.27:9083
     hive.allow-drop-table=true
     hive.max-partitions-per-scan=1000000
-    hive.s3.endpoint=127.0.0.1:9000
+    hive.s3.endpoint=10.244.1.11:9000
     hive.s3.path-style-access=true
     hive.s3.ssl.enabled=false
     hive.s3.max-connections=100
   iceberg.properties: |-
     connector.name=iceberg
-    hive.metastore.uri=thrift://10.244.1.37:9083
+    hive.metastore.uri=thrift://10.244.1.27:9083
     hive.max-partitions-per-scan=1000000
     hive.s3.endpoint=10.244.1.33:9000
     hive.s3.path-style-access=true
@@ -62,6 +61,6 @@ data:
     hive.s3.max-connections=100
   postgres.properties: |-
     connector.name=mysql
-    connection-url=jdbc:postgresql://10.244.1.4:5432/metadata?allowPublicKeyRetrieval=true&amp;useSSL=false&amp;serverTimezone=UTC
+    connection-url=jdbc:postgresql://10.244.1.5:5432/metadata?allowPublicKeyRetrieval=true&amp;useSSL=false&amp;serverTimezone=UTC
     connection-user=postgres
     connection-password=postgresSuperUserPsw

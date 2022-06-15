@@ -8,7 +8,7 @@ data:
             </property>
            <property>
                 <name>fs.s3a.endpoint</name>
-                <value>http://10.244.1.33:9000:9000</value>
+                <value>http://10.244.1.11:9000</value>
             </property>
             <property>
                 <name>fs.s3a.fast.upload</name>
@@ -27,7 +27,7 @@ data:
             </property>
             <property>
                 <name>javax.jdo.option.ConnectionURL</name>
-                <value>jdbc:postgresql://10.244.1.4:5432/metadata?allowPublicKeyRetrieval=true&amp;useSSL=false&amp;serverTimezone=UTC</value>
+                <value>jdbc:postgresql://10.244.1.5:5432/metadata?allowPublicKeyRetrieval=true&amp;useSSL=false&amp;serverTimezone=UTC</value>
             </property>
             <property>
                 <name>javax.jdo.option.ConnectionDriverName</name>
