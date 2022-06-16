@@ -44,7 +44,7 @@ data:
     query-max-spill-per-node=1TB
   hive.properties: |-
     connector.name=hive-hadoop2
-    hive.metastore.uri=thrift://10.244.1.37:9083
+    hive.metastore.uri=thrift://10.244.1.102:9083
     hive.allow-drop-table=true
     hive.max-partitions-per-scan=1000000
     hive.s3.endpoint=10.244.1.11:9000
@@ -53,7 +53,7 @@ data:
     hive.s3.max-connections=100
   iceberg.properties: |-
     connector.name=iceberg
-    hive.metastore.uri=thrift://10.244.1.37:9083
+    hive.metastore.uri=thrift://10.244.1.102:9083
     hive.max-partitions-per-scan=1000000
     hive.s3.endpoint=10.244.1.33:9000
     hive.s3.path-style-access=true

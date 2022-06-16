@@ -107,18 +107,22 @@ and verify if the tables are created properly
 ```
 
  kubectl  exec -it mypostgres-1-0 /bin/sh
- psql -U postgres
+ psql -U postgres 
+ postgresSuperUserPsw
 
+\list
 \c metadata
 \dt
-                     List of relations
- Schema |             Name              | Type  |  Owner   
---------+-------------------------------+-------+----------
- public | BUCKETING_COLS                | table | postgres
- public | CDS                           | table | postgres
- public | COLUMNS_V2                    | table | postgres
- public | CTLGS                         | table | postgres
-...
+\q
+
+To drop table in use
+
+SELECT                  
+    pg_terminate_backend(pid) 
+FROM 
+    pg_stat_activity ;
+
+drop database metadata;
 
 ````
 
@@ -185,13 +189,44 @@ Create a table in S3 via Trino
 
 Acess Trino CLI
 
+
 Give the EP of trino in the server argument below
 
 ```
 kubectl exec -it trino-cli /bin/bash 
-/bin/trino --server 10.244.1.42:8080 --catalog hive --schema default
+/bin/trino --server 10.244.1.104:8080 --catalog hive --schema default
+```
+Try to create a schema using S3
+
+```
+CREATE SCHEMA hive.test4 WITH (location ='s3a://test/test4');
 ```
 
-CREATE SCHEMA test2 WITH (location ='s3a://test/');
+CREATE TABLE IF NOT EXISTS test4 (
+  orderkey bigint,
+  orderstatus varchar,
+  totalprice double,
+  orderdate date
+)
+WITH (format = 'ORC');
+
+
+```
+
+## Note
+
+Handy commands
+
+After pod restarts the Endpoints that we gave change - so we need to change the dependent services endpoints too
+
+```
+kubectl apply -f hive/metastore-cfg.yaml && kubectl delete -f hive/hive-meta-store-standalone.yaml  && kubectl create -f hive/hive-meta-store-standalone.yaml
+kubectl get ep | grep meta (update in trino_cfg.yaml)
+
+kubectl apply -f trino/trino_cfg.yaml && kubectl delete -f trino/trino.yaml && kubectl create -f trino/trino.yaml
+kubectl get ep | grep trino (update in psql)
+
+
+```
 
 
