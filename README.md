@@ -1,5 +1,12 @@
 
 
+Adapted from https://github.com/joshuarobinson/trino-on-k8s
+
+and from https://joshua-robinson.medium.com/presto-powered-s3-data-warehouse-on-kubernetes-aea89d2f40e8
+
+
+Main changes - Kind cluster, Mino S3, Updated Trino and changes for that, Updated Hive standanlone Docker, Postgres Database
+
 # Step 0: Install Kind cluster if you dont have any other
 
 Create a Kind Cluster, with memory limitation
@@ -194,32 +201,56 @@ Give the EP of trino in the server argument below
 
 ```
 kubectl exec -it trino-cli /bin/bash 
-/bin/trino --server 10.244.1.111:8080 --catalog hive --schema default
+/bin/trino --server 10.244.1.115:8080 --catalog hive --schema default
 ```
+
 Try to create a schema using S3
 
+We are using the built in test datastrore `tpcds` to create load ;
+
 ```
-CREATE SCHEMA hive.test4 WITH (location ='s3a://test/test4');
+trino:default> CREATE SCHEMA hive.tpcds WITH (location = 's3a://test/warehouse/tpcds/');
+trino:default> CREATE TABLE tpcds.store_sales AS SELECT * FROM tpcds.tiny.store_sales;
+CREATE TABLE: 120527 rows
+
+Query 20220617_125702_00006_sqada, FINISHED, 3 nodes
+Splits: 14 total, 14 done (100.00%)
+20.24 [121K rows, 0B] [5.95K rows/s, 0B/s]
+
 ```
 
-CREATE TABLE IF NOT EXISTS test4 (
+You can see that in S3 the files are written
+
+![filesins3](https://i.imgur.com/aEe7GzV.png)
+
+```
+trino:default> select count(*) from tpcds.store_sales;
+ _col0  
+--------
+ 120527 
+(1 row)
+````
+
+You can see the queries getting executed via the Trino UI
+
+![trino_ui](https://i.imgur.com/HFXqMGc.png)
+
+
+Custom tables and queries next
+
+```
+CREATE SCHEMA hive.test WITH (location ='s3a://test/test4');
+
+CREATE TABLE IF NOT EXISTS test.store (
   orderkey bigint,
   orderstatus varchar,
   totalprice double,
   orderdate date
 )
 WITH (format = 'ORC');
-
-
 ```
 
-CREATE SCHEMA hive.tpcds WITH (location = 's3a://test/warehouse/tpcds/');
-
-CREATE TABLE tpcds.store_sales AS SELECT * FROM tpcds.tiny.store_sales;
-
-## Note
-
-Handy commands
+## Handy commands
 
 After pod restarts the Endpoints that we gave change - so we need to change the dependent services endpoints too
 
@@ -230,7 +261,8 @@ kubectl get ep | grep meta (update in trino_cfg.yaml)
 kubectl apply -f trino/trino_cfg.yaml && kubectl delete -f trino/trino.yaml && kubectl create -f trino/trino.yaml
 kubectl get ep | grep trino (update in psql)
 
-
+kubectl   port-forward svc/trino 8080 
+kubectl port-forward svc/mino-test-minio-console 9001
 ```
 
 

@@ -51,6 +51,8 @@ data:
     hive.s3.path-style-access=true
     hive.s3.ssl.enabled=false
     hive.s3.max-connections=100
+    hive.s3.aws-access-key=minio
+    hive.s3.aws-secret-key=minio123
   iceberg.properties: |-
     connector.name=iceberg
     hive.metastore.uri=thrift://10.244.1.102:9083
