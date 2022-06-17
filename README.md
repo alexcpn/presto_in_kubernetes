@@ -194,7 +194,7 @@ Give the EP of trino in the server argument below
 
 ```
 kubectl exec -it trino-cli /bin/bash 
-/bin/trino --server 10.244.1.104:8080 --catalog hive --schema default
+/bin/trino --server 10.244.1.111:8080 --catalog hive --schema default
 ```
 Try to create a schema using S3
 
@@ -212,6 +212,10 @@ WITH (format = 'ORC');
 
 
 ```
+
+CREATE SCHEMA hive.tpcds WITH (location = 's3a://test/warehouse/tpcds/');
+
+CREATE TABLE tpcds.store_sales AS SELECT * FROM tpcds.tiny.store_sales;
 
 ## Note
 

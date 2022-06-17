@@ -24,7 +24,7 @@ data:
     http-server.http.port=8080
     query.max-memory=1GB
     query.max-memory-per-node=1GB
-    query.max-total-memory-per-node=1GB
+    #query.max-total-memory-per-node=1GB
     query.max-stage-count=200
     task.writer-count=4
     discovery-server.enabled=true
@@ -46,7 +46,7 @@ data:
     connector.name=hive-hadoop2
     hive.metastore.uri=thrift://10.244.1.102:9083
     hive.allow-drop-table=true
-    hive.max-partitions-per-scan=1000000
+    #hive.max-partitions-per-scan=1000000
     hive.s3.endpoint=10.244.1.11:9000
     hive.s3.path-style-access=true
     hive.s3.ssl.enabled=false
@@ -54,7 +54,7 @@ data:
   iceberg.properties: |-
     connector.name=iceberg
     hive.metastore.uri=thrift://10.244.1.102:9083
-    hive.max-partitions-per-scan=1000000
+    #hive.max-partitions-per-scan=1000000
     hive.s3.endpoint=10.244.1.33:9000
     hive.s3.path-style-access=true
     hive.s3.ssl.enabled=false
