@@ -85,14 +85,7 @@ Other commands
 
  \dt (list the tables - After Step 2.1)
 
-Get the EP  of Postgres
-
-```
-kubectl get ep 
-
-mypostgres               10.244.0.78:5432                    9h
-mypostgres-replica       10.244.0.80:5432,10.244.0.82:5432   9h
-```
+Get the Postgres Service
 
 Update it in connection string
 in `hive/metastore-cfg.yaml` and `hive/hive-initschema.yaml`
@@ -180,9 +173,9 @@ kubectl   port-forward svc/trino 8080  &
 
 Create a table in S3 via Trino
 
-Access Trino CLI
+## Access Trino CLI
 
-Give the EP of trino in the server argument below
+Give the Service of trino in the server argument below
 
 ```
 kubectl exec -it trino-cli /bin/bash 
@@ -191,7 +184,12 @@ kubectl exec -it trino-cli /bin/bash
 
 Try to create a schema using S3
 
-We are using the built in test datastrore `tpcds` to create load ;
+We are using the built in test datastrore `tpcds` to create tables and it will be auto-populated;
+
+```
+show schemas from tpcds;
+show tables  from tpcds.tiny;
+```
 
 ```
 trino:default> CREATE SCHEMA hive.tpcds WITH (location = 's3a://test/warehouse/tpcds/');
@@ -245,3 +243,43 @@ kubectl apply -f trino/trino_cfg.yaml && kubectl delete -f trino/trino.yaml && k
 kubectl   port-forward svc/trino 8080 
 kubectl port-forward svc/mino-test-minio-console 9001
 ```
+
+## Installing  Redash
+
+From https://github.com/getredash/contrib-helm-chart
+
+## Optional: Install Redash 
+
+Redash is a GUI to execute  SQL queries using various Data soruces. Trino is also supported. And it can be used to analyze data
+
+Minor changes below for proper installation
+```
+helm repo add redash https://getredash.github.io/contrib-helm-chart/
+
+Get the template instead of directly installing
+
+helm template  myredash -f redash/my-values.yaml  redash/redash >> redash/deployment.yaml
+
+and updated the following to latest,as Image pull error was there in older; Also made the passwords in my-value smaller as some erros 
+were coming
+
+- name: myredash-postgresql
+ image: docker.io/bitnami/postgresql:14.4.0-debian-11-r1
+- name: redis
+ image: docker.io/bitnami/redis:6.0.16-debian-11-r7
+```
+Once installed - Port forward to see the GUI
+
+
+```
+kubectl port-forward svc/myredash 80:8081
+```
+
+You can configure the Trino data source like below; and use redash for query execution and visualization
+
+![redash_config](https://i.imgur.com/2OS7zdz.png)
+
+Query Execution and Visualization
+
+![redash_visalization](https://i.imgur.com/pIRqHkp.png)
+

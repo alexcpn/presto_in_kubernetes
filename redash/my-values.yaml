@@ -1,0 +1,7 @@
+redash:
+  cookieSecret: iPDoYo3OWQzPfwyYkGn5AM987YbcbXjtohAzBInSnkA=
+  secretKey: 31lx3nKNJh/82WXpvntp5LyhzMcPNkKmNVqCwbRDYnk=
+postgresql:
+  postgresqlPassword: testpostgrespass
+redis:
+  password: testredispass

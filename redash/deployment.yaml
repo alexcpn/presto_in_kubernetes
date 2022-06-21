@@ -1,0 +1,1330 @@
+---
+# Source: redash/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: myredash
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: redash/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: myredash-postgresql
+  labels:
+    app: postgresql
+    chart: postgresql-8.10.14
+    release: "myredash"
+    heritage: "Helm"
+type: Opaque
+data:
+  postgresql-password: "dGVzdHBvc3RncmVzcGFzcw=="
+---
+# Source: redash/charts/redis/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: myredash-redis
+  namespace: default
+  labels:
+    app: redis
+    chart: redis-10.9.0
+    release: "myredash"
+    heritage: "Helm"
+type: Opaque
+data:
+  redis-password: "dGVzdHJlZGlzcGFzcw=="
+---
+# Source: redash/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: myredash
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  ## Start primary Redash configuration
+  
+  secretKey: "MzFseDNuS05KaC84MldYcHZudHA1THloek1jUE5rS21OVnFDd2JSRFluaz0="
+  googleClientSecret: ""
+  ldapBindDnPassword: ""
+  
+  cookieSecret: "aVBEb1lvM09XUXpQZnd5WWtHbjVBTTk4N1liY2JYanRvaEF6QkluU25rQT0="
+  mailPassword: ""
+  ## End primary Redash configuration
+---
+# Source: redash/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myredash-redis
+  namespace: default
+  labels:
+    app: redis
+    chart: redis-10.9.0
+    heritage: Helm
+    release: myredash
+data:
+  redis.conf: |-
+    # User-supplied configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+  master.conf: |-
+    dir /data
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+  replica.conf: |-
+    dir /data
+    slave-read-only yes
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+---
+# Source: redash/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myredash-redis-health
+  namespace: default
+  labels:
+    app: redis
+    chart: redis-10.9.0
+    heritage: Helm
+    release: myredash
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+    no_auth_warning=$([[ "$(redis-cli --version)" =~ (redis-cli 5.*) ]] && echo --no-auth-warning)
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -a $REDIS_PASSWORD $no_auth_warning \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+    no_auth_warning=$([[ "$(redis-cli --version)" =~ (redis-cli 5.*) ]] && echo --no-auth-warning)
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -a $REDIS_PASSWORD $no_auth_warning \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$response" != "PONG" ] && [ "$response" != "LOADING Redis is loading the dataset in memory" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+    no_auth_warning=$([[ "$(redis-cli --version)" =~ (redis-cli 5.*) ]] && echo --no-auth-warning)
+     response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -a $REDIS_MASTER_PASSWORD $no_auth_warning \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+    no_auth_warning=$([[ "$(redis-cli --version)" =~ (redis-cli 5.*) ]] && echo --no-auth-warning)
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -a $REDIS_MASTER_PASSWORD $no_auth_warning \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$response" != "PONG" ] && [ "$response" != "LOADING Redis is loading the dataset in memory" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: redash/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myredash
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+data:
+  install-upgrade.sh: |
+    #!/usr/bin/env bash
+    echo "This will retry connections until PostgreSQL/Redis is up, then perform database installation/migrations as needed."
+
+    # Status command timeout
+    STATUS_TIMEOUT=45
+    # Create tables command timeout
+    CREATE_TIMEOUT=60
+    # Upgrade command timeout
+    UPGRADE_TIMEOUT=600
+    # Time to wait between attempts
+    RETRY_WAIT=10
+    # Max number of attempts
+    MAX_ATTEMPTS=5
+
+    # Load connection variables
+    . /config/dynamicenv.sh
+
+    # Check Settings (for debug)
+    # /app/manage.py check_settings
+
+    # Initialize attempt counter
+    ATTEMPTS=0
+    while ((ATTEMPTS < MAX_ATTEMPTS)); do
+      echo "Starting attempt ${ATTEMPTS} of ${MAX_ATTEMPTS}"
+      ATTEMPTS=$((ATTEMPTS+1))
+
+      # Install and upgrade
+      if [[ "${1}" == "install" ]]; then
+        echo "Installing Redash:"
+        timeout $CREATE_TIMEOUT /app/manage.py database create_tables
+        echo "Tables created"
+        echo "Running Redash database migrations after install"
+        timeout $UPGRADE_TIMEOUT /app/manage.py db upgrade
+        echo "Upgrade complete"
+      fi
+
+      # Upgrade
+      if [[ "${1}" == "upgrade" ]]; then
+        echo "Running Redash database migrations:"
+        timeout $UPGRADE_TIMEOUT /app/manage.py db upgrade
+        echo "Upgrade complete"
+      fi
+
+      STATUS=$(timeout $STATUS_TIMEOUT /app/manage.py status 2>&1)
+      RETCODE=$?
+      echo "Return code: ${RETCODE}"
+      echo "Status: ${STATUS}"
+      case "$RETCODE" in
+        0)
+          exit 0
+          ;;
+        124)
+          echo "Status command timed out after ${STATUS_TIMEOUT} seconds."
+          ;;
+      esac
+      case "$STATUS" in
+        *sqlalchemy.exc.OperationalError*)
+          echo "Database not yet functional, waiting."
+          ;;
+        *sqlalchemy.exc.ProgrammingError*)
+          echo "Database does not appear to be installed."
+          ;;
+      esac
+      echo "Waiting ${RETRY_WAIT} seconds before retrying."
+      sleep 10
+    done
+    echo "Reached ${MAX_ATTEMPTS} attempts, giving up."
+    exit 1
+  dynamicenv.sh: |
+    # Build connection URLs from environment variables.
+    # NOTES:
+    #   This script should be sourced, not run directly.
+    #   All variables are expected to be set by the caller.
+    if [ -z "$REDASH_DATABASE_URL" ]; then
+      export REDASH_DATABASE_URL=postgresql://${REDASH_DATABASE_USER}:${REDASH_DATABASE_PASSWORD}@${REDASH_DATABASE_HOSTNAME}:${REDASH_DATABASE_PORT}/${REDASH_DATABASE_DB}
+      echo "Using Database: postgresql://${REDASH_DATABASE_USER}:******@${REDASH_DATABASE_HOSTNAME}:${REDASH_DATABASE_PORT}/${REDASH_DATABASE_DB}"
+    else
+      echo "Using external postgresql database"
+    fi
+    if [ -z "$REDASH_REDIS_URL" ]; then
+      export REDASH_REDIS_URL=redis://:${REDASH_REDIS_PASSWORD}@${REDASH_REDIS_HOSTNAME}:${REDASH_REDIS_PORT}/${REDASH_REDIS_DB}
+      echo "Using Redis: redis://:******@${REDASH_REDIS_HOSTNAME}:${REDASH_REDIS_PORT}/${REDASH_REDIS_DB}"
+    else
+      echo "Using external redis database"
+    fi
+---
+# Source: redash/charts/postgresql/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myredash-postgresql-headless
+  labels:
+    app: postgresql
+    chart: postgresql-8.10.14
+    release: "myredash"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app: postgresql
+    release: "myredash"
+---
+# Source: redash/charts/postgresql/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myredash-postgresql
+  labels:
+    app: postgresql
+    chart: postgresql-8.10.14
+    release: "myredash"
+    heritage: "Helm"
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app: postgresql
+    release: "myredash"
+    role: master
+---
+# Source: redash/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myredash-redis-headless
+  namespace: default
+  labels:
+    app: redis
+    chart: redis-10.9.0
+    release: myredash
+    heritage: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app: redis
+    release: myredash
+---
+# Source: redash/charts/redis/templates/redis-master-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myredash-redis-master
+  namespace: default
+  labels:
+    app: redis
+    chart: redis-10.9.0
+    release: myredash
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app: redis
+    release: myredash
+    role: master
+---
+# Source: redash/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myredash
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 5000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/component: server
+---
+# Source: redash/templates/adhocworker-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myredash-adhocworker
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: adhocworker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redash
+      app.kubernetes.io/instance: myredash
+      app.kubernetes.io/component: adhocworker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redash
+        app.kubernetes.io/instance: myredash
+        app.kubernetes.io/component: adhocworker
+    spec:
+      serviceAccountName: myredash
+      securityContext:
+        {}
+      containers:
+        - name: redash-adhocworker
+          securityContext:
+            {}
+          image: "redash/redash:10.0.0.b50363"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args: ["-c", ". /config/dynamicenv.sh && /app/bin/docker-entrypoint worker"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          env:
+            
+            - name: REDASH_DATABASE_USER
+              value: "redash"
+            - name: REDASH_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-postgresql
+                  key: postgresql-password
+            - name: REDASH_DATABASE_HOSTNAME
+              value: myredash-postgresql
+            - name: REDASH_DATABASE_PORT
+              value: "5432"
+            - name: REDASH_DATABASE_DB
+              value: "redash"
+            - name: REDASH_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-redis
+                  key: redis-password
+            - name: REDASH_REDIS_HOSTNAME
+              value: myredash-redis-master
+            - name: REDASH_REDIS_PORT
+              value: "6379"
+            - name: REDASH_REDIS_DB
+              value: "0"
+            - name: "PYTHONUNBUFFERED"
+              value: "0"
+            ## Start primary Redash configuration
+            - name: REDASH_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: secretKey
+            - name: REDASH_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: cookieSecret
+            - name: SQLALCHEMY_ENABLE_POOL_PRE_PING
+              value: "true"
+            ## End primary Redash configuration
+            - name: "QUEUES"
+              value: "queries"
+            - name: "WORKERS_COUNT"
+              value: "2"
+          envFrom:
+            
+          resources:
+            null
+      volumes:
+        - name: config
+          configMap:
+            name: myredash
+---
+# Source: redash/templates/genericworker-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myredash-genericworker
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: genericworker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redash
+      app.kubernetes.io/instance: myredash
+      app.kubernetes.io/component: genericworker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redash
+        app.kubernetes.io/instance: myredash
+        app.kubernetes.io/component: genericworker
+    spec:
+      serviceAccountName: myredash
+      securityContext:
+        {}
+      containers:
+        - name: redash-genericworker
+          securityContext:
+            {}
+          image: "redash/redash:10.0.0.b50363"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args: ["-c", ". /config/dynamicenv.sh && /app/bin/docker-entrypoint worker"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          env:
+            
+            - name: REDASH_DATABASE_USER
+              value: "redash"
+            - name: REDASH_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-postgresql
+                  key: postgresql-password
+            - name: REDASH_DATABASE_HOSTNAME
+              value: myredash-postgresql
+            - name: REDASH_DATABASE_PORT
+              value: "5432"
+            - name: REDASH_DATABASE_DB
+              value: "redash"
+            - name: REDASH_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-redis
+                  key: redis-password
+            - name: REDASH_REDIS_HOSTNAME
+              value: myredash-redis-master
+            - name: REDASH_REDIS_PORT
+              value: "6379"
+            - name: REDASH_REDIS_DB
+              value: "0"
+            - name: "PYTHONUNBUFFERED"
+              value: "0"
+            ## Start primary Redash configuration
+            - name: REDASH_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: secretKey
+            - name: REDASH_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: cookieSecret
+            - name: SQLALCHEMY_ENABLE_POOL_PRE_PING
+              value: "true"
+            ## End primary Redash configuration
+            - name: "QUEUES"
+              value: "periodic,emails,default"
+            - name: "WORKERS_COUNT"
+              value: "1"
+          envFrom:
+            
+          resources:
+            null
+      volumes:
+        - name: config
+          configMap:
+            name: myredash
+---
+# Source: redash/templates/scheduledworker-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myredash-scheduledworker
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: scheduledworker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redash
+      app.kubernetes.io/instance: myredash
+      app.kubernetes.io/component: scheduledworker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redash
+        app.kubernetes.io/instance: myredash
+        app.kubernetes.io/component: scheduledworker
+    spec:
+      serviceAccountName: myredash
+      securityContext:
+        {}
+      containers:
+        - name: redash-scheduledworker
+          securityContext:
+            {}
+          image: "redash/redash:10.0.0.b50363"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args: ["-c", ". /config/dynamicenv.sh && /app/bin/docker-entrypoint worker"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          env:
+            
+            - name: REDASH_DATABASE_USER
+              value: "redash"
+            - name: REDASH_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-postgresql
+                  key: postgresql-password
+            - name: REDASH_DATABASE_HOSTNAME
+              value: myredash-postgresql
+            - name: REDASH_DATABASE_PORT
+              value: "5432"
+            - name: REDASH_DATABASE_DB
+              value: "redash"
+            - name: REDASH_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-redis
+                  key: redis-password
+            - name: REDASH_REDIS_HOSTNAME
+              value: myredash-redis-master
+            - name: REDASH_REDIS_PORT
+              value: "6379"
+            - name: REDASH_REDIS_DB
+              value: "0"
+            - name: "PYTHONUNBUFFERED"
+              value: "0"
+            ## Start primary Redash configuration
+            - name: REDASH_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: secretKey
+            - name: REDASH_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: cookieSecret
+            - name: SQLALCHEMY_ENABLE_POOL_PRE_PING
+              value: "true"
+            ## End primary Redash configuration
+            - name: "QUEUES"
+              value: "scheduled_queries,schemas"
+            - name: "WORKERS_COUNT"
+              value: "1"
+          envFrom:
+            
+          resources:
+            null
+      volumes:
+        - name: config
+          configMap:
+            name: myredash
+---
+# Source: redash/templates/scheduler-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myredash-scheduler
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redash
+      app.kubernetes.io/instance: myredash
+      app.kubernetes.io/component: scheduler
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redash
+        app.kubernetes.io/instance: myredash
+        app.kubernetes.io/component: scheduler
+    spec:
+      serviceAccountName: myredash
+      securityContext:
+        {}
+      containers:
+        - name: redash-scheduler
+          securityContext:
+            {}
+          image: "redash/redash:10.0.0.b50363"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args: ["-c", ". /config/dynamicenv.sh && /app/bin/docker-entrypoint scheduler"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          env:
+            
+            - name: REDASH_DATABASE_USER
+              value: "redash"
+            - name: REDASH_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-postgresql
+                  key: postgresql-password
+            - name: REDASH_DATABASE_HOSTNAME
+              value: myredash-postgresql
+            - name: REDASH_DATABASE_PORT
+              value: "5432"
+            - name: REDASH_DATABASE_DB
+              value: "redash"
+            - name: REDASH_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-redis
+                  key: redis-password
+            - name: REDASH_REDIS_HOSTNAME
+              value: myredash-redis-master
+            - name: REDASH_REDIS_PORT
+              value: "6379"
+            - name: REDASH_REDIS_DB
+              value: "0"
+            - name: "PYTHONUNBUFFERED"
+              value: "0"
+            ## Start primary Redash configuration
+            - name: REDASH_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: secretKey
+            - name: REDASH_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: cookieSecret
+            - name: SQLALCHEMY_ENABLE_POOL_PRE_PING
+              value: "true"
+            ## End primary Redash configuration
+          envFrom:
+            
+          resources:
+            null
+      volumes:
+        - name: config
+          configMap:
+            name: myredash
+---
+# Source: redash/templates/server-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myredash
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redash
+      app.kubernetes.io/instance: myredash
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redash
+        app.kubernetes.io/instance: myredash
+        app.kubernetes.io/component: server
+    spec:
+      serviceAccountName: myredash
+      securityContext:
+        {}
+      containers:
+        - name: redash-server
+          securityContext:
+            {}
+          image: "redash/redash:10.0.0.b50363"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args: ["-c", ". /config/dynamicenv.sh && /app/bin/docker-entrypoint server"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          env:
+            
+            - name: REDASH_DATABASE_USER
+              value: "redash"
+            - name: REDASH_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-postgresql
+                  key: postgresql-password
+            - name: REDASH_DATABASE_HOSTNAME
+              value: myredash-postgresql
+            - name: REDASH_DATABASE_PORT
+              value: "5432"
+            - name: REDASH_DATABASE_DB
+              value: "redash"
+            - name: REDASH_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-redis
+                  key: redis-password
+            - name: REDASH_REDIS_HOSTNAME
+              value: myredash-redis-master
+            - name: REDASH_REDIS_PORT
+              value: "6379"
+            - name: REDASH_REDIS_DB
+              value: "0"
+            - name: "PYTHONUNBUFFERED"
+              value: "0"
+            ## Start primary Redash configuration
+            - name: REDASH_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: secretKey
+            - name: REDASH_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: myredash
+                  key: cookieSecret
+            - name: SQLALCHEMY_ENABLE_POOL_PRE_PING
+              value: "true"
+            ## End primary Redash configuration
+          envFrom:
+            
+          ports:
+            - containerPort: 5000
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 5000
+            # Redash can take a while to come up initially, so we delay checks.
+            initialDelaySeconds: 90
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 5000
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            {}
+      volumes:
+        - name: config
+          configMap:
+            name: myredash
+---
+# Source: redash/charts/postgresql/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: myredash-postgresql
+  labels:
+    app: postgresql
+    chart: postgresql-8.10.14
+    release: "myredash"
+    heritage: "Helm"
+  annotations:
+spec:
+  serviceName: myredash-postgresql-headless
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: postgresql
+      release: "myredash"
+      role: master
+  template:
+    metadata:
+      name: myredash-postgresql
+      labels:
+        app: postgresql
+        chart: postgresql-8.10.14
+        release: "myredash"
+        heritage: "Helm"
+        role: master
+    spec:      
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: myredash-postgresql
+          image: docker.io/bitnami/postgresql:9.6.17-debian-10-r3
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            - name: POSTGRES_USER
+              value: "redash"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-postgresql
+                  key: postgresql-password
+            - name: POSTGRES_DB
+              value: "redash"
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "redash" -d "redash" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "redash" -d "redash" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+              subPath: 
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "10Gi"
+---
+# Source: redash/charts/redis/templates/redis-master-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: myredash-redis-master
+  namespace: default
+  labels:
+    app: redis
+    chart: redis-10.9.0
+    release: myredash
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app: redis
+      release: myredash
+      role: master
+  serviceName: myredash-redis-headless
+  template:
+    metadata:
+      labels:
+        app: redis
+        chart: redis-10.9.0
+        release: myredash
+        role: master
+      annotations:
+        checksum/health: 61910f5b63a59d9108243e884573b638bee7656e4d407fc79e9e9e7b2dfdd641
+        checksum/configmap: 178b1804c9177b91fb4ebcc8b307301a9f49fe8a2eda4947e72713bc7cef6e46
+        checksum/secret: 8e4797f21d71b780517cead358751ba87f18d2312be1663310a66e85d053d924
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: default
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:6.0.8-debian-10-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          command:
+            - /bin/bash
+            - -c
+            - |
+              if [[ -n $REDIS_PASSWORD_FILE ]]; then
+                password_aux=`cat ${REDIS_PASSWORD_FILE}`
+                export REDIS_PASSWORD=$password_aux
+              fi
+              if [[ ! -f /opt/bitnami/redis/etc/master.conf ]];then
+                cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+              fi
+              if [[ ! -f /opt/bitnami/redis/etc/redis.conf ]];then
+                cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+              fi
+              ARGS=("--port" "${REDIS_PORT}")
+              ARGS+=("--requirepass" "${REDIS_PASSWORD}")
+              ARGS+=("--masterauth" "${REDIS_PASSWORD}")
+              ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+              ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+              /run.sh ${ARGS[@]}
+          env:
+            - name: REDIS_REPLICATION_MODE
+              value: master
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: myredash-redis
+                  key: redis-password
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            # One second longer than command timeout should prevent generation of zombie processes.
+            timeoutSeconds: 6
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_liveness_local.sh 5
+          readinessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_readiness_local.sh 1
+          resources:
+            null
+          volumeMounts:
+            - name: health
+              mountPath: /health
+            - name: redis-data
+              mountPath: /data
+              subPath: 
+            - name: config
+              mountPath: /opt/bitnami/redis/mounted-etc
+            - name: redis-tmp-conf
+              mountPath: /opt/bitnami/redis/etc/
+      volumes:
+        - name: health
+          configMap:
+            name: myredash-redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: myredash-redis
+        - name: redis-tmp-conf
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+        labels:
+          app: redis
+          release: myredash
+          heritage: Helm
+          component: master
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+        
+        selector:
+  updateStrategy:
+    type: RollingUpdate
+---
+# Source: redash/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "myredash-test-connection"
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: test-connection
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:7.68.0
+      command: ['sh']
+      args: ['-c', 'curl --silent --show-error -L --max-redirs 3 --retry 3 --retry-connrefused --retry-delay 10 --max-time 30 "http://myredash:80" | fgrep "Welcome to Redash"']
+  restartPolicy: Never
+---
+# Source: redash/templates/hook-install-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "myredash-install"
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: install
+  annotations:
+    # This is what defines this resource as a hook.
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      name: "myredash"
+      labels:
+        app.kubernetes.io/name: redash
+        app.kubernetes.io/instance: myredash
+    spec:
+      serviceAccountName: myredash
+      restartPolicy: Never
+      securityContext:
+        {}
+      containers:
+      - name: redash-server
+        securityContext:
+            {}
+        image: "redash/redash:10.0.0.b50363"
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash", "/config/install-upgrade.sh", "install"]
+        volumeMounts:
+          - name: config
+            mountPath: /config
+        env:
+          
+          - name: REDASH_DATABASE_USER
+            value: "redash"
+          - name: REDASH_DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: myredash-postgresql
+                key: postgresql-password
+          - name: REDASH_DATABASE_HOSTNAME
+            value: myredash-postgresql
+          - name: REDASH_DATABASE_PORT
+            value: "5432"
+          - name: REDASH_DATABASE_DB
+            value: "redash"
+          - name: REDASH_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: myredash-redis
+                key: redis-password
+          - name: REDASH_REDIS_HOSTNAME
+            value: myredash-redis-master
+          - name: REDASH_REDIS_PORT
+            value: "6379"
+          - name: REDASH_REDIS_DB
+            value: "0"
+          - name: "PYTHONUNBUFFERED"
+            value: "0"
+          ## Start primary Redash configuration
+          - name: REDASH_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: myredash
+                key: secretKey
+          - name: REDASH_COOKIE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: myredash
+                key: cookieSecret
+          - name: SQLALCHEMY_ENABLE_POOL_PRE_PING
+            value: "true"
+          ## End primary Redash configuration
+        envFrom:
+          
+        resources:
+          {}
+      volumes:
+        - name: config
+          configMap:
+            name: myredash
+---
+# Source: redash/templates/hook-upgrade-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "myredash-upgrade"
+  labels:
+    helm.sh/chart: redash-3.0.0
+    app.kubernetes.io/name: redash
+    app.kubernetes.io/instance: myredash
+    app.kubernetes.io/version: "10.0.0.b50633"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: upgrade
+  annotations:
+    # This is what defines this resource as a hook.
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      name: "myredash"
+      labels:
+        app.kubernetes.io/name: redash
+        app.kubernetes.io/instance: myredash
+    spec:
+      serviceAccountName: myredash
+      restartPolicy: Never
+      securityContext:
+        {}
+      containers:
+      - name: redash-server
+        securityContext:
+            {}
+        image: "redash/redash:10.0.0.b50363"
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash", "/config/install-upgrade.sh", "upgrade"]
+        volumeMounts:
+          - name: config
+            mountPath: /config
+        env:
+          
+          - name: REDASH_DATABASE_USER
+            value: "redash"
+          - name: REDASH_DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: myredash-postgresql
+                key: postgresql-password
+          - name: REDASH_DATABASE_HOSTNAME
+            value: myredash-postgresql
+          - name: REDASH_DATABASE_PORT
+            value: "5432"
+          - name: REDASH_DATABASE_DB
+            value: "redash"
+          - name: REDASH_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: myredash-redis
+                key: redis-password
+          - name: REDASH_REDIS_HOSTNAME
+            value: myredash-redis-master
+          - name: REDASH_REDIS_PORT
+            value: "6379"
+          - name: REDASH_REDIS_DB
+            value: "0"
+          - name: "PYTHONUNBUFFERED"
+            value: "0"
+          ## Start primary Redash configuration
+          - name: REDASH_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: myredash
+                key: secretKey
+          - name: REDASH_COOKIE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: myredash
+                key: cookieSecret
+          - name: SQLALCHEMY_ENABLE_POOL_PRE_PING
+            value: "true"
+          ## End primary Redash configuration
+        envFrom:
+          
+        resources:
+          {}
+      volumes:
+        - name: config
+          configMap:
+            name: myredash
