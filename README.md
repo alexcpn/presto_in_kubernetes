@@ -1,13 +1,15 @@
 
+# PrestoSQL/Trino with S3 in Kubernetes Baremetal
+## Trino, HiveMetStore Standalone, MinoS3, Postgres DB in Kind cluster
 
 Adapted from https://github.com/joshuarobinson/trino-on-k8s
 
 and from https://joshua-robinson.medium.com/presto-powered-s3-data-warehouse-on-kubernetes-aea89d2f40e8
 
 
-Main changes - Kind cluster, Mino S3, Updated Trino and changes for that, Updated Hive standanlone Docker, Postgres Database
+Main changes - Kind cluster, Minio S3, Updated Trino and changes for that, Updated Hive standalone Docker, Postgres Database
 
-# Step 0: Install Kind cluster if you dont have any other
+# Step 0: Install Kind cluster
 
 Create a Kind Cluster, with memory limitation
 
@@ -36,12 +38,12 @@ Postgres in Kubernetes https://www.kubegres.io/
 
 https://www.kubegres.io/doc/getting-started.html
 
-
 ```
 kubectl apply -f https://raw.githubusercontent.com/reactive-tech/kubegres/v1.15/kubegres.yaml
 kubectl apply -f postgres/postgres-secret.yaml
 kubectl apply -f postgres/kubegres-porstrescluster.yaml
 ```
+
 ```
 kubectl get pods
 NAME             READY   STATUS    RESTARTS   AGE
@@ -79,11 +81,9 @@ postgres=# \list
 
 Other commands
 
- \c metadata (conenct to metadata DB)
+ \c metadata (connect to metadata DB)
 
  \dt (list the tables - After Step 2.1)
-
-
 
 Get the EP  of Postgres
 
@@ -97,14 +97,11 @@ mypostgres-replica       10.244.0.80:5432,10.244.0.82:5432   9h
 Update it in connection string
 in `hive/metastore-cfg.yaml` and `hive/hive-initschema.yaml`
 
-
-
 # Step 2: Install Hive Metadata Standalone
-
 
 ## Step 2.1
 
-Run the hive/hive-initschema.yaml Job to intialise the schema in the Postgre table
+Run the `hive/hive-initschema.yaml` Job to initialize the schema in the Postgres table
 
 ```
 kubectl apply -f hive/hive-initschema.yaml
@@ -183,9 +180,7 @@ kubectl   port-forward svc/trino 8080  &
 
 Create a table in S3 via Trino
 
-
-Acess Trino CLI
-
+Access Trino CLI
 
 Give the EP of trino in the server argument below
 
@@ -242,8 +237,6 @@ WITH (format = 'ORC');
 
 ## Handy commands
 
-After pod restarts the Endpoints that we gave change - so we need to change the dependent services endpoints too
-
 ```
 kubectl apply -f hive/metastore-cfg.yaml && kubectl delete -f hive/hive-meta-store-standalone.yaml  && kubectl create -f hive/hive-meta-store-standalone.yaml
 
@@ -252,5 +245,3 @@ kubectl apply -f trino/trino_cfg.yaml && kubectl delete -f trino/trino.yaml && k
 kubectl   port-forward svc/trino 8080 
 kubectl port-forward svc/mino-test-minio-console 9001
 ```
-
-
