@@ -52,6 +52,7 @@ mypostgres-3-0   1/1     Running   0          22m
 
 Manually Create a DB after installing Postgres
 
+
 ```
  kubectl  exec -it mypostgres-1-0 /bin/sh
  psql -U postgres
@@ -140,31 +141,20 @@ Create the S3 secrets for Hive
 kubectl create secret generic my-s3-keys --from-literal=access-key=’minio’ --from-literal=secret-key=’minio123’
 ```
 
-Get the Mino/S3 EP
+Get the Mino/S3 service
 
 ```
-kubectl get ep  
-
-alex@pop-os:~/coding/preso_hive$ kubectl get ep
-NAME                      ENDPOINTS                                                      AGE
-kubernetes                172.18.0.3:6443                                                29h
-metastore                 10.244.1.37:9083                                               139m
-mino-test-minio           10.244.1.11:9000,10.244.1.4:9000,10.244.1.8:9000 + 1 more...   24h
-mino-test-minio-console   10.244.1.11:9001,10.244.1.4:9001,10.244.1.8:9001 + 1 more...   24h
-mino-test-minio-svc       10.244.1.11:9000,10.244.1.4:9000,10.244.1.8:9000 + 1 more...   24h
-mypostgres                10.244.1.5:5432                                                29h
-mypostgres-replica        10.244.1.6:5432,10.244.1.7:5432                                29h
-trino                     10.244.1.42:8080                                               3h43m
+kubernetes                ClusterIP   10.96.0.1       <none>        443/TCP    7d
+metastore                 ClusterIP   10.96.189.200   <none>        9083/TCP   4m8s
+mino-test-minio           ClusterIP   10.96.149.113   <none>        9000/TCP   6d18h
+mino-test-minio-console   ClusterIP   10.96.236.45    <none>        9001/TCP   6d18h
+mino-test-minio-svc       ClusterIP   None            <none>        9000/TCP   6d18h
+mypostgres                ClusterIP   None            <none>        5432/TCP   29m
+mypostgres-replica        ClusterIP   None            <none>        5432/TCP   6d23h
+trino                     ClusterIP   10.96.249.19    <none>        8080/TCP   63s                                       3h43m
 ```
 
 Update in `hive\metastroe-cfg.yaml` for S3
-
-The following properties using Endpoints or Ingress for S3 and Postgres
-
-```
-<name>fs.s3a.endpoint</name>
-<value>http://10.244.1.11:9001</value>
-```                
 
 Install the hive metdata server 
 
@@ -201,7 +191,7 @@ Give the EP of trino in the server argument below
 
 ```
 kubectl exec -it trino-cli /bin/bash 
-/bin/trino --server 10.244.1.115:8080 --catalog hive --schema default
+/bin/trino --server trino:8080 --catalog hive --schema default
 ```
 
 Try to create a schema using S3
@@ -256,10 +246,8 @@ After pod restarts the Endpoints that we gave change - so we need to change the 
 
 ```
 kubectl apply -f hive/metastore-cfg.yaml && kubectl delete -f hive/hive-meta-store-standalone.yaml  && kubectl create -f hive/hive-meta-store-standalone.yaml
-kubectl get ep | grep meta (update in trino_cfg.yaml)
 
 kubectl apply -f trino/trino_cfg.yaml && kubectl delete -f trino/trino.yaml && kubectl create -f trino/trino.yaml
-kubectl get ep | grep trino (update in psql)
 
 kubectl   port-forward svc/trino 8080 
 kubectl port-forward svc/mino-test-minio-console 9001
