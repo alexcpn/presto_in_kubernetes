@@ -31,7 +31,13 @@ RUN curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP
 && curl -L https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-core/1.12.238/aws-java-sdk-core-1.12.238.jar -o \
 /opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/aws-java-sdk-core-1.12.238.jar \
 && curl -L https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.238/aws-java-sdk-bundle-1.12.238.jar -o \
-/opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/aws-java-sdk-bundle-1.12.238.jar
+/opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/aws-java-sdk-bundle-1.12.238.jar \
+# Below for transcaction bug https://github.com/trinodb/trino/issues/6980
+&& curl -L  https://repo1.maven.org/maven2/org/apache/hive/hive-exec/3.1.3/hive-exec-3.1.3.jar -o \
+/opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/hive-exec-3.1.3.jar \
+&& curl -L https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-web/2.17.2/log4j-web-2.17.2.jar -o \
+/opt/apache-hive-metastore-${METASTORE_VERSION}-bin/log4j-web-2.17.2.jar
+
 
 RUN /opt/apache-hive-metastore-${METASTORE_VERSION}-bin/bin/schematool -initSchema -dbType derby
 

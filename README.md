@@ -148,6 +148,14 @@ Update in `hive\metastroe-cfg.yaml` for S3
 
 Install the hive metdata server 
 
+First build the HiveMetastore Standalone
+
+```
+docker build -t hivemetastore:3.1.3.2 -f hive/Dockerfile .
+docker tag hivemetastore:3.1.3.2 alexcpn/hivemetastore:3.1.3.2
+docker push alexcpn/hivemetastore:3.1.3.2
+ ```
+
 ```
 kubectl apply -f   hive/metastore-cfg.yaml
 kubectl apply -f  hive/hive-meta-store-standalone.yaml
@@ -218,21 +226,6 @@ You can see the queries getting executed via the Trino UI
 
 ![trino_ui](https://i.imgur.com/HFXqMGc.png)
 
-
-Custom tables and queries next
-
-```
-CREATE SCHEMA hive.test WITH (location ='s3a://test/test4');
-
-CREATE TABLE IF NOT EXISTS test.store (
-  orderkey bigint,
-  orderstatus varchar,
-  totalprice double,
-  orderdate date
-)
-WITH (format = 'ORC');
-```
-
 ## Handy commands
 
 ```
@@ -242,6 +235,9 @@ kubectl apply -f trino/trino_cfg.yaml && kubectl delete -f trino/trino.yaml && k
 
 kubectl   port-forward svc/trino 8080 
 kubectl port-forward svc/mino-test-minio-console 9001
+
+kubectl exec -it trino-cli /bin/bash 
+/bin/trino --server trino:8080 --catalog hive --schema default
 ```
 
 ## Installing  Redash
@@ -250,7 +246,7 @@ From https://github.com/getredash/contrib-helm-chart
 
 ## Optional: Install Redash 
 
-Redash is a GUI to execute  SQL queries using various Data soruces. Trino is also supported. And it can be used to analyze data
+Redash is a GUI to execute  SQL queries using various Data sources. Trino is also supported. And it can be used to analyze data
 
 Minor changes below for proper installation
 ```
@@ -272,7 +268,7 @@ Once installed - Port forward to see the GUI
 
 
 ```
-kubectl port-forward svc/myredash 80:8081
+kubectl port-forward svc/myredash 8081:80
 ```
 
 You can configure the Trino data source like below; and use redash for query execution and visualization
@@ -282,4 +278,5 @@ You can configure the Trino data source like below; and use redash for query exe
 Query Execution and Visualization
 
 ![redash_visalization](https://i.imgur.com/pIRqHkp.png)
+
 
