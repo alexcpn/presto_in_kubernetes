@@ -7,7 +7,10 @@ ENV METASTORE_VERSION=3.1.3
 ENV HADOOP_HOME=/opt/hadoop-${HADOOP_VERSION}
 ENV HIVE_HOME=/opt/apache-hive-metastore-${METASTORE_VERSION}-bin
 
-RUN apk add --no-cache bash curl && curl -L https://repo1.maven.org/maven2/org/apache/hive/hive-standalone-metastore/${METASTORE_VERSION}/hive-standalone-metastore-${METASTORE_VERSION}-bin.tar.gz | tar zxf - && \
+COPY metastore-log4j2.properties .
+
+RUN apk add --no-cache bash curl && \
+curl -L https://repo1.maven.org/maven2/org/apache/hive/hive-standalone-metastore/${METASTORE_VERSION}/hive-standalone-metastore-${METASTORE_VERSION}-bin.tar.gz | tar zxf - && \
     curl -L https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | tar zxf - 
 
 #needed to fix nosuchmethoderror
@@ -17,9 +20,8 @@ RUN rm /opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/guava-19.0.jar &&
 
 
 # Download and install the Postgres connector.
-RUN curl -L https://jdbc.postgresql.org/download/postgresql-42.4.0.jar -o /opt/postgresql-42.4.0.jar \
-	&& ln -s /opt/postgresql-42.4.0.jar  /opt/hadoop-${HADOOP_VERSION}/share/hadoop/common/lib/ \
-	&& ln -s /opt/postgresql-42.4.0.jar  /opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/     
+RUN curl -L https://jdbc.postgresql.org/download/postgresql-42.4.0.jar -o \
+	 /opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/postgresql-42.4.0.jar 
 
 # Download and install the S3 related Jars
 RUN curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_VERSION}/hadoop-aws-${HADOOP_VERSION}.jar -o \
@@ -36,13 +38,14 @@ RUN curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP
 && curl -L  https://repo1.maven.org/maven2/org/apache/hive/hive-exec/3.1.3/hive-exec-3.1.3.jar -o \
 /opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/hive-exec-3.1.3.jar \
 && curl -L https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-web/2.17.2/log4j-web-2.17.2.jar -o \
-/opt/apache-hive-metastore-${METASTORE_VERSION}-bin/log4j-web-2.17.2.jar
+/opt/apache-hive-metastore-${METASTORE_VERSION}-bin/lib/log4j-web-2.17.2.jar
 
 
-RUN /opt/apache-hive-metastore-${METASTORE_VERSION}-bin/bin/schematool -initSchema -dbType derby
+# Below Only if you are using built in DB
 
+#RUN /opt/apache-hive-metastore-${METASTORE_VERSION}-bin/bin/schematool -initSchema -dbType derby
 #persist the database changes
-VOLUME /opt/metastore_db
+#VOLUME /opt/metastore_db
 
 #metastore runs on this port
 EXPOSE 9083
