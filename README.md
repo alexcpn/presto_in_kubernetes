@@ -99,11 +99,9 @@ Run the `hive/hive-initschema.yaml` Job to initialize the schema in the Postgres
 ```
 kubectl apply -f hive/hive-initschema.yaml
 ```
-
 and verify if the tables are created properly
 
 ```
-
  kubectl  exec -it mypostgres-1-0 /bin/sh
  psql -U postgres 
  postgresSuperUserPsw
@@ -121,9 +119,8 @@ FROM
     pg_stat_activity ;
 
 drop database metadata;
-
 ````
-
+## Step 2.2
 
 Create the S3 secrets for Hive
 
@@ -134,6 +131,7 @@ kubectl create secret generic my-s3-keys --from-literal=access-key=’minio’ -
 Get the Mino/S3 service
 
 ```
+kubectl get svc
 kubernetes                ClusterIP   10.96.0.1       <none>        443/TCP    7d
 metastore                 ClusterIP   10.96.189.200   <none>        9083/TCP   4m8s
 mino-test-minio           ClusterIP   10.96.149.113   <none>        9000/TCP   6d18h
@@ -144,21 +142,26 @@ mypostgres-replica        ClusterIP   None            <none>        5432/TCP   6
 trino                     ClusterIP   10.96.249.19    <none>        8080/TCP   63s                                       3h43m
 ```
 
-Update in `hive\metastroe-cfg.yaml` for S3
+Update in `hive\metastroe-cfg.yaml` for S3 and Postgres
 
-Install the hive metdata server 
+**NOTE** Sometimes giving the service in Kindcluster gave me read timeouts from Hive. So I changed that to Endpoints (that is IP's) in `metastore-cfg.yaml`. This means that everytime the Kind cluster restarts the Endpoints have to reset and hive reployed for now. Need to check this later
+
+## Step 2.3
 
 First build the HiveMetastore Standalone
 
 ```
-docker build -t hivemetastore:3.1.3.2 -f hive/Dockerfile .
-docker tag hivemetastore:3.1.3.2 alexcpn/hivemetastore:3.1.3.2
-docker push alexcpn/hivemetastore:3.1.3.2
+docker build -t hivemetastore:3.1.3.5 -f hive/Dockerfile ./hive
+docker tag hivemetastore:3.1.3.5 alexcpn/hivemetastore:3.1.3.5
+docker push alexcpn/hivemetastore:3.1.3.5
  ```
 
+## Step 2.4
+
+Install the hive metdata server 
+
 ```
-kubectl apply -f   hive/metastore-cfg.yaml
-kubectl apply -f  hive/hive-meta-store-standalone.yaml
+kubectl apply -f hive/metastore-cfg.yaml && kubectl delete -f hive/hive-meta-store-standalone.yaml  && kubectl create -f hive/hive-meta-store-standalone.yaml
 ```
 
 
@@ -279,4 +282,4 @@ Query Execution and Visualization
 
 ![redash_visalization](https://i.imgur.com/pIRqHkp.png)
 
-
+Further tests are described here [More tests, Transactions, Update, CSV etc](testqueries.md)
