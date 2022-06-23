@@ -57,6 +57,10 @@ data:
                 <name>metastore.thrift.port</name>
                 <value>9083</value>
             </property>
+            <property>
+                <name>metastore.log4j.file</name>
+                <value>/opt/metastore-log4j2.properties</value>
+            </property>
         </configuration>
 kind: ConfigMap
 metadata:
