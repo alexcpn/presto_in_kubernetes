@@ -172,3 +172,70 @@ trino:default> DESCRIBE nyc_parq.tlc_yellow_trips_2018;
  tip_amount            | decimal(8,2) |       |         
  tolls_amount          | decimal(8,2) |       
  ```
+
+ Let's see how fast we can query; I am running Mino in my Laptop on SSD
+
+ ```
+ select * from nyc_parq.tlc_yellow_trips_2018 ;
+ vendorid |  tpep_pickup_datetime   |  tpep_dropoff_datetime  | passenger_count | trip_distance | ratecodeid | store_and_fwd_flag | pulocationid | dolocationid | payment_type >
+----------+-------------------------+-------------------------+-----------------+---------------+------------+--------------------+--------------+--------------+-------------->
+        2 | 2018-06-28 11:07:27.000 | 2018-06-28 11:28:54.000 |               1 |          2.26 |          1 | N                  |          140 |          161 |            1 >
+        2 | 2018-06-28 11:44:03.000 | 2018-06-28 11:48:00.000 |               1 |          0.64 |          1 | N                  |          239 |          238 |            2 >
+        2 | 2018-06-28 11:52:42.000 | 2018-06-28 12:07:38.000 |               1 
+...
+Query 20220623_125710_00093_7tuyy, RUNNING, 2 nodes
+Splits: 5 total, 5 done (100.00%)
+5:00 [754K rows, 11.8MB] [2.51K rows/s, 40.3KB/s]
+```
+
+Let's try to predict the Trip time using this data
+
+```
+SELECT
+  pulocationid,
+   dolocationid,
+   date_diff('minute' ,tpep_pickup_datetime, tpep_dropoff_datetime)  as difference
+  FROM nyc_parq.tlc_yellow_trips_2018
+  GROUP BY (pulocationid,dolocationid)
+
+ pulocationid | dolocationid | difference 
+--------------+--------------+------------
+           48 |           90 |         15 
+          170 |          162 |         14 
+          140 |          236 |          5 
+          107 |           90 |         10 
+          186 |          162 |         14 
+          249 |           13 |         12 
+           13 |          231 |         20 
+```
+
+Another more complex query (from a site)
+
+```
+
+trino:default> SELECT DISTINCT passenger_count
+            ->     , ROUND (SUM (fare_amount),0) as TotalFares
+            ->     , ROUND (AVG (fare_amount),0) as AvgFares
+            -> FROM nyc_parq.tlc_yellow_trips_2018
+            -> GROUP BY passenger_count
+            -> ORDER BY  AvgFares DESC
+            -> ;
+ passenger_count | TotalFares | AvgFares 
+-----------------+------------+----------
+               9 |     399.00 |    67.00 
+               7 |      86.00 |    29.00 
+               8 |     111.00 |    28.00 
+               4 |  246091.00 |    15.00 
+               3 |  466199.00 |    14.00 
+               2 | 1585505.00 |    14.00 
+               6 |  276720.00 |    13.00 
+               0 |   85157.00 |    13.00 
+               5 |  458260.00 |    13.00 
+               1 | 6997287.00 |    13.00 
+(10 rows)
+
+Query 20220623_133806_00111_7tuyy, FINISHED, 2 nodes
+Splits: 13 total, 13 done (100.00%)
+50.37 [754K rows, 3.61MB] [15K rows/s, 73.5KB/s]
+```
+
