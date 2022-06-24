@@ -1,15 +1,28 @@
 
-# PrestoSQL/Trino with S3 in Kubernetes Baremetal
+# DataLakeHouse: Trino (PrestoSQL) with S3 in Kubernetes Baremetal
 ## Trino, HiveMetStore Standalone, MinoS3, Postgres DB in Kind cluster
 
-Adapted from https://github.com/joshuarobinson/trino-on-k8s
-
+Based and expanded  from https://github.com/joshuarobinson/trino-on-k8s
 and from https://joshua-robinson.medium.com/presto-powered-s3-data-warehouse-on-kubernetes-aea89d2f40e8
 
+Main changes - Kind cluster, Minio S3, Updated Trino and changes for that, Updated Hive standalone Dockerfile, Postgres Database
 
-Main changes - Kind cluster, Minio S3, Updated Trino and changes for that, Updated Hive standalone Docker, Postgres Database
 
+# What is a DataLakeHouse ?
+
+This is a mouthful; I hope everyone has heard of DataWareHouse. That's old school now based on Hadoop and HDFS file system; which is hard to operate and maintain
+
+
+The cool kid on the block is S3, and DataLake is data on S3.
+DataLakeHouse is data on S3, but with a SQL Table and Schema kept for that and hence data that can be queried
 # System Diagram
+
+**Components**
+
+- Trino - Is a Distributed SQL Engine
+- Hive - We use only Hive Metadata Server Standalone here; This uses a DB (we use Postgres) to persist. This stores the Table structure
+- S3 - This holds the data as S3 object; The meta-structure for this is stored and kept in Hive
+- Parquet - The data in S3 is stored in Apache Parquet , binary compressed and columnar data format
 
 ![DataLake](https://i.imgur.com/Dg9jM61.png)
 
@@ -147,6 +160,15 @@ trino                     ClusterIP   10.96.249.19    <none>        8080/TCP   6
 ```
 
 Update in `hive\metastroe-cfg.yaml` for S3 and Postgres
+
+Note especially the below property. We are pointing the `metastore.warehouse.dir` to the S3 location; All Schemas and tables will hereby get created in S3.
+
+```
+   <property>
+      <name>metastore.warehouse.dir</name>
+      <value>s3a://test/warehouse</value>
+   </property>
+```            
 
 **NOTE** Sometimes giving the service in Kindcluster gave me read timeouts from Hive. So I changed that to Endpoints (that is IP's) in `metastore-cfg.yaml`. This means that everytime the Kind cluster restarts the Endpoints have to reset and hive reployed for now. Need to check this later
 
