@@ -118,7 +118,7 @@ Try to Query the data out- Works
  2        | 06/29/2018 02:20:52 PM | 06/29/2018 02:51:28 PM | 5               | 4.32          | 1          | N                  | 13           | 4            | 1            | >
 ```
 
-Convert this to ORC or Parquet as each field in CSV is read as VARCHAR
+Convert this to ORC or Parquet as each field in CSV is read as VARCHAR. Apache Parquet is a columnar data format and stores/compress data very efficiently when compared with sya CSV or Text. Colum based storage would also make queries much faster. 
 
 ```
 CREATE SCHEMA hive.nyc_parq;
@@ -210,6 +210,7 @@ SELECT
 ```
 
 Another more complex query (from a site)
+As you can see you need to be a SQL expert to analyze data. However this is easier for most data analyst than say coding in Python or R; and definitely so for Business Analyst.
 
 ```
 
@@ -238,4 +239,39 @@ Query 20220623_133806_00111_7tuyy, FINISHED, 2 nodes
 Splits: 13 total, 13 done (100.00%)
 50.37 [754K rows, 3.61MB] [15K rows/s, 73.5KB/s]
 ```
+
+You can see this relation in Redash
+![redash_vi](https://i.imgur.com/f0xxrgm.png)
+
+Let's now try something more complex; Try to predict trip fare based on day of week and time of day
+
+```
+select date_format(tpep_pickup_datetime, '%Y%m%d %H %i %a'),fare_amount from nyc_parq.tlc_yellow_trips_2018 limit 10;
+       _col0        | fare_amount 
+--------------------+-------------
+ 20180630 09 42 Sat |        7.00 
+ 20180630 08 22 Sat |       52.00 
+```
+
+Building on the above
+
+
+```
+trino:default> Select dayofweek, AVG(fare_amount) FROM
+            -> ( select fare_amount, date_format(tpep_pickup_datetime, '%a') as dayofweek 
+            ->     from nyc_parq.tlc_yellow_trips_2018)
+            ->  group by dayofweek ;
+ dayofweek | _col1 
+-----------+-------
+ Thu       | 13.72 
+ Wed       | 17.20 
+ Fri       | 14.14 
+ Sat       | 12.31 
+ Sun       |  9.00 
+
+ ```
+
+Note that I do not have the entire dataset but truncated version; hence results are missing certain days like for example Monday.
+
+
 

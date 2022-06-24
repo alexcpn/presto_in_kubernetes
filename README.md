@@ -9,6 +9,10 @@ and from https://joshua-robinson.medium.com/presto-powered-s3-data-warehouse-on-
 
 Main changes - Kind cluster, Minio S3, Updated Trino and changes for that, Updated Hive standalone Docker, Postgres Database
 
+# System Diagram
+
+![DataLake](https://i.imgur.com/Dg9jM61.png)
+
 # Step 0: Install Kind cluster
 
 Create a Kind Cluster, with memory limitation
