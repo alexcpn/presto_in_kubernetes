@@ -273,5 +273,307 @@ trino:default> Select dayofweek, AVG(fare_amount) FROM
 
 Note that I do not have the entire dataset but truncated version; hence results are missing certain days like for example Monday.
 
+---
+
+# Upload data in Parquet And Load as Table
+
+The new data by NYC for the Taxi service is given in Parquet files.Let's see how we can upload the parquet file to S3 and connect it to table. Turns out that one you figure out the correct datatype to give in CREATE TABLE, it is pretty simple
+
+The data is got from https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+
+`yellow_tripdata_2022-01.parquet`
+We first create a Schema and then create the following path in S3 and upload the data there
+
+```
+CREATE SCHEMA nyc_in_parquet;
+```
+Upload `yellow_tripdata_2022-01.parquet` to
+
+```
+s3a://test/warehouse/nyc_in_parquet.db/tlc_yellow_trip_2022/yellow_tripdata_2022-01.parquet
+```
+
+Lets inspect this file
+
+```
+$ pip install parquet-tools
+
+$ parquet-tools inspect yellow_tripdata_2022-01.parquet 
+
+############ file meta data ############
+created_by: parquet-cpp-arrow version 7.0.0
+num_columns: 19
+num_rows: 2463931
+num_row_groups: 1
+format_version: 1.0
+serialized_size: 10386
 
 
+############ Columns ############
+VendorID
+tpep_pickup_datetime
+tpep_dropoff_datetime
+passenger_count
+trip_distance
+RatecodeID
+store_and_fwd_flag
+PULocationID
+DOLocationID
+payment_type
+fare_amount
+extra
+mta_tax
+tip_amount
+tolls_amount
+improvement_surcharge
+total_amount
+congestion_surcharge
+airport_fee
+
+############ Column(VendorID) ############
+name: VendorID
+path: VendorID
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: INT64
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 47%)
+
+############ Column(tpep_pickup_datetime) ############
+name: tpep_pickup_datetime
+path: tpep_pickup_datetime
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: INT64
+logical_type: Timestamp(isAdjustedToUTC=false, timeUnit=microseconds, is_from_converted_type=false, force_set_converted_type=false)
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 52%)
+
+############ Column(tpep_dropoff_datetime) ############
+name: tpep_dropoff_datetime
+path: tpep_dropoff_datetime
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: INT64
+logical_type: Timestamp(isAdjustedToUTC=false, timeUnit=microseconds, is_from_converted_type=false, force_set_converted_type=false)
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 51%)
+
+############ Column(passenger_count) ############
+name: passenger_count
+path: passenger_count
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 53%)
+
+############ Column(trip_distance) ############
+name: trip_distance
+path: trip_distance
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 10%)
+
+############ Column(RatecodeID) ############
+name: RatecodeID
+path: RatecodeID
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 61%)
+
+############ Column(store_and_fwd_flag) ############
+name: store_and_fwd_flag
+path: store_and_fwd_flag
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: BYTE_ARRAY
+logical_type: String
+converted_type (legacy): UTF8
+compression: GZIP (space_saved: 55%)
+
+############ Column(PULocationID) ############
+name: PULocationID
+path: PULocationID
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: INT64
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 25%)
+
+############ Column(DOLocationID) ############
+name: DOLocationID
+path: DOLocationID
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: INT64
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 12%)
+
+############ Column(payment_type) ############
+name: payment_type
+path: payment_type
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: INT64
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 55%)
+
+############ Column(fare_amount) ############
+name: fare_amount
+path: fare_amount
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 27%)
+
+############ Column(extra) ############
+name: extra
+path: extra
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 65%)
+
+############ Column(mta_tax) ############
+name: mta_tax
+path: mta_tax
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 69%)
+
+############ Column(tip_amount) ############
+name: tip_amount
+path: tip_amount
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 30%)
+
+############ Column(tolls_amount) ############
+name: tolls_amount
+path: tolls_amount
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 80%)
+
+############ Column(improvement_surcharge) ############
+name: improvement_surcharge
+path: improvement_surcharge
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 63%)
+
+############ Column(total_amount) ############
+name: total_amount
+path: total_amount
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 18%)
+
+############ Column(congestion_surcharge) ############
+name: congestion_surcharge
+path: congestion_surcharge
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 62%)
+
+############ Column(airport_fee) ############
+name: airport_fee
+path: airport_fee
+max_definition_level: 1
+max_repetition_level: 0
+physical_type: DOUBLE
+logical_type: None
+converted_type (legacy): NONE
+compression: GZIP (space_saved: 58%)
+
+```
+
+We use the above data types to create the right SQL data types in the CREATE Table below
+
+```
+CREATE TABLE nyc_in_parquet.tlc_yellow_trip_2022 (
+    vendorid INTEGER,
+    tpep_pickup_datetime TIMESTAMP,
+    tpep_dropoff_datetime TIMESTAMP,
+    passenger_count DOUBLE,
+    trip_distance DOUBLE,
+    ratecodeid DOUBLE,
+    store_and_fwd_flag CHAR(1),
+    pulocationid INTEGER,
+    dolocationid INTEGER,
+    payment_type INTEGER,
+    fare_amount DOUBLE,
+    extra DOUBLE,
+    mta_tax DOUBLE,
+    tip_amount DOUBLE,
+    tolls_amount DOUBLE,
+    improvement_surcharge DOUBLE,
+    total_amount DOUBLE,
+    congestion_surcharge DOUBLE,
+    airport_fee DOUBLE)
+WITH (FORMAT = 'PARQUET',
+    EXTERNAL_LOCATION = 's3a://test/warehouse/nyc_in_parquet.db/tlc_yellow_trip_2022')
+;
+```
+That's it; Let's Query the data and see
+
+```
+SELECT count(*) FROM  nyc_in_parquet.tlc_yellow_trip_2022 ;
+  _col0  
+---------
+ 2463931 
+(1 row)
+
+Query 20220625_100612_00061_7tuyy, FINISHED, 2 nodes
+Splits: 4 total, 4 done (100.00%)
+13.60 [2.46M rows, 16KB] [181K rows/s, 1.18KB/s
+```
+
+Cool 2.5 million rows in this small 37M parquet file
+
+```
+SELECT * FROM  nyc_in_parquet.tlc_yellow_trip_2022 LIMIT 10;
+ vendorid |  tpep_pickup_datetime   |  tpep_dropoff_datetime  | passenger_count | trip_distance | ratecodeid | store_and_fwd_flag | pulocationid | dolocationid | payment_type >
+----------+-------------------------+-------------------------+-----------------+---------------+------------+--------------------+--------------+--------------+-------------->
+        1 | 2022-01-01 00:35:40.000 | 2022-01-01 00:53:29.000 |             2.0 |           3.8 |        1.0 | N                  |          142 |          236 |            1 >
+        1 | 2022-01-01 00:33:43.000 | 2022-01-01 00:42:07.000 |             1.0 |           2.1 |        1.0 | N                  |          236 |           42 |            1 >
+        2 | 2022-01-01 00:53:21.000 | 2022-01-01 01:02:19.000 |             1.0 
+        ...
+
+```
+
+Next ; lets read this from Python into a Pandas Dataframe. That should make ML parts easeier
