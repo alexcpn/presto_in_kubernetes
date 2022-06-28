@@ -257,10 +257,10 @@ Building on the above
 
 
 ```
-trino:default> Select dayofweek, AVG(fare_amount) FROM
-            -> ( select fare_amount, date_format(tpep_pickup_datetime, '%a') as dayofweek 
-            ->     from nyc_parq.tlc_yellow_trips_2018)
-            ->  group by dayofweek ;
+Select dayofweek, AVG(fare_amount) FROM
+ ( select fare_amount, date_format(tpep_pickup_datetime, '%a') as dayofweek 
+     from nyc_parq.tlc_yellow_trips_2018)
+  group by dayofweek ;
  dayofweek | _col1 
 -----------+-------
  Thu       | 13.72 
@@ -575,5 +575,88 @@ SELECT * FROM  nyc_in_parquet.tlc_yellow_trip_2022 LIMIT 10;
         ...
 
 ```
+Let's run a complex query 
 
-Next ; lets read this from Python into a Pandas Dataframe. That should make ML parts easeier
+```
+Select dayofweek, AVG(fare_amount) FROM
+ ( select fare_amount, date_format(tpep_pickup_datetime, '%a') as dayofweek 
+     from nyc_in_parquet.tlc_yellow_trip_2022)
+  group by dayofweek ;
+
+   dayofweek |       _col1        
+-----------+--------------------
+ Wed       | 12.290740850208424 
+ Mon       | 13.422371442169597 
+ Tue       | 12.531063256070471 
+ Thu       | 12.408311232285685 
+ Sat       |  12.51759075286025 
+ Fri       | 13.581231240928696 
+ Sun       | 13.811130821498017 
+(7 rows)
+
+Query 20220625_230058_00076_7tuyy, FINISHED, 2 nodes
+Splits: 7 total, 7 done (100.00%)
+17.92 [2.46M rows, 11.4MB] [138K rows/s, 652KB/s]
+```
+The output in a few seconds; Not bad from 2 million rows
+
+Here is another
+```
+select t.range, count(*) as "Number of Occurance", ROUND(AVG(fare_amount),2) as "Avg",
+  ROUND(MAX(fare_amount),2) as "Max" ,ROUND(MIN(fare_amount),2) as "Min"
+from (
+  select 
+   case 
+      when trip_distance between  0 and  9 then ' 0-9 '
+      when trip_distance between 10 and 19 then '10-19'
+      when trip_distance between 20 and 29 then '20-29'
+      when trip_distance between 30 and 39 then '30-39'
+      else '> 39' 
+   end as range ,fare_amount
+  from nyc_in_parquet.tlc_yellow_trip_2022) t
+group by t.range;
+
+ range | Number of Occurance |  Avg   |    Max    |  Min   
+-------+---------------------+--------+-----------+--------
+  0-9  |             2274195 |  10.34 | 401092.32 | -480.0 
+ 30-39 |                1120 | 102.51 |     280.0 | -159.5 
+ 10-19 |              126672 |  43.45 |     413.5 | -200.0 
+ > 39  |               42716 |  38.83 |     668.0 | -388.0 
+ 20-29 |               19228 |  58.08 |     250.0 | -160.0 
+(5 rows)
+```
+
+Note that there are some bad values here, that you can see from Max and Min; Adapting for that
+
+```
+  select t.range, count(*) as "Number of Occurance", ROUND(AVG(fare_amount),2) as "Avg",
+    ROUND(MAX(fare_amount),2) as "Max" ,ROUND(MIN(fare_amount),2) as "Min" 
+  from (
+    select 
+    case 
+        when trip_distance between  0 and  9 then ' 0-9 '
+        when trip_distance between 10 and 19 then '10-19'
+        when trip_distance between 20 and 29 then '20-29'
+        when trip_distance between 30 and 39 then '30-39'
+        else '> 39' 
+    end as range ,fare_amount 
+    from nyc_in_parquet.tlc_yellow_trip_2022) t
+    where fare_amount > 1 and fare_amount < 401092
+  group by t.range;
+
+ range | Number of Occurance |  Avg   |  Max  | Min  
+-------+---------------------+--------+-------+------
+  0-9  |             2260865 |  10.28 | 720.0 | 1.11 
+ 30-39 |                1107 | 104.28 | 280.0 |  5.0 
+ 10-19 |              126136 |   43.8 | 413.5 |  2.0 
+ > 39  |               42556 |  39.11 | 668.0 | 1.99 
+ 20-29 |               19133 |  58.62 | 250.0 |  2.5 
+
+```
+
+
+Next ; lets Create, Insert and Query from Python using the Python SQL library.
+Let's then see how the query results can be loaded into a Pandas Dataframe.
+
+You can find the code in `\python` folder for this
+

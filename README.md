@@ -170,7 +170,18 @@ Note especially the below property. We are pointing the `metastore.warehouse.dir
    </property>
 ```            
 
-**NOTE** Sometimes giving the service in Kindcluster gave me read timeouts from Hive. So I changed that to Endpoints (that is IP's) in `metastore-cfg.yaml`. This means that everytime the Kind cluster restarts the Endpoints have to reset and hive reployed for now. Need to check this later
+**NOTE** Giving the service in Kind cluster give read timeouts from Hive when it is trying to write to Minio. So for Mino the endpoint IP is mentiond in `metastore-cfg.yaml`. This means that every time the Kind cluster restarts the Endpoints have to reset and hive redeployed for now.
+
+```
+$ kubectl get ep | grep mini
+mino-test-minio                10.244.1.14:9000,10.244.1.15:9000,10.244.1.2:9000 + 1 more...   13d
+
+<property>
+      <name>fs.s3a.endpoint</name>
+      <value>http://10.244.1.14:9000</value>
+</property>
+```
+
 
 ## Step 2.3
 
@@ -184,7 +195,7 @@ docker push alexcpn/hivemetastore:3.1.3.5
 
 ## Step 2.4
 
-Install the hive metdata server 
+Install/Re-insall the hive Metadata server 
 
 ```
 kubectl apply -f hive/metastore-cfg.yaml && kubectl delete -f hive/hive-meta-store-standalone.yaml  && kubectl create -f hive/hive-meta-store-standalone.yaml
@@ -193,7 +204,7 @@ kubectl apply -f hive/metastore-cfg.yaml && kubectl delete -f hive/hive-meta-sto
 
 # Step 4. Install Trino (PrestoSQL)
 
-Configure the Postgres,S3, and metastrore EP first in `trino\trino_cfg.yaml`
+Configure the Postgres,S3, and Metastrore Service first in `trino\trino_cfg.yaml`
 
 ```
 kubectl apply -f trino/trino_cfg.yaml
