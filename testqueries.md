@@ -19,16 +19,32 @@ INSERT INTO test4.employee VALUES
 (3, 'Kate',  6000);
 ```
 
-Insert works; trying to alter the table
+Insert works; 
+
+Trying to alter the table - works
 
 ```
 ALTER TABLE test4.employee ADD column description varchar;
+```
 
+Trying to update the Table - Does not work - Not supported now
+
+*Note that **Presto cannot create or write to Hive transactional tables yet**. You can create and write to Hive transactional tables via Hive or via Spark with Hive ACID Data Source plugin and use Presto to read these tables.* https://trino.io/blog/2020/06/01/hive-acid.html
+
+```
 update test4.employee  set description ='Employee Jerry description' where id=1;
+
 Query 20220622_105039_00034_7tuyy failed: Hive update is only supported for ACID transactional tables
 ```
 
-- 2. Creating a Table with ACID transactions support - Works
+Testing Delete on a non transactional table - Not working
+
+```
+trino:default> delete from test4.employee2 where id=1;
+Query 20220629_195118_00005_q8zcg failed: Deletes must match whole partitions for non-transactional tables
+```
+
+Trying to create a Table with transactional support for testing Updates 
 
 ```
 trino:default> CREATE TABLE test4.employee5 (id int, name varchar, salary int)
@@ -41,7 +57,7 @@ trino:default> ALTER TABLE test4.employee5 ADD column description varchar;
 ADD COLUMN
 ```
 
-- 3. Inserting into a table with transaction -Does not work now!
+- 3. Inserting into a table with transaction -Not working - not possible from Trino now
 
 ```
 trino:default> INSERT INTO test4.employee5 VALUES
@@ -57,7 +73,7 @@ Splits: 8 total, 8 done (100.00%)
 Query 20220623_043713_00027_7tuyy failed: Invalid method name: 'alter_table_req'
 ```
 
-Does not work - Bug raised - https://github.com/trinodb/trino/issues/12949
+Bug raised - https://github.com/trinodb/trino/issues/12949 before I knew this was a restriction
 
 # Test 2: Load Training Data as CSV and Query with Presto
 
