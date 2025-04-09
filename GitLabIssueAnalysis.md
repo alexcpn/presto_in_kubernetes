@@ -259,6 +259,14 @@ kubectl   port-forward svc/trino 8080  &
 
 Create a table in S3 via Trino
 
+
+Use the Minio UI to upload the parguet files to s3
+
+![s3upload](https://i.imgur.com/wvPbQXZ.png)
+
+
+## Create the schema for the Parquet files
+
 ## Access Trino CLI
 
 Give the Service of trino in the server argument below
@@ -266,96 +274,48 @@ Give the Service of trino in the server argument below
 ```
 kubectl exec -it trino-cli -- /bin/bash 
 /bin/trino --server trino:8080 --catalog hive --schema default
+
+CREATE TABLE hive.mydatabase.mytable (
+    title VARCHAR,
+    description VARCHAR,
+    author_id BIGINT,
+    assignee_id BIGINT,
+    iid BIGINT,
+    labels VARCHAR,
+    confidential BOOLEAN,
+    created_at TIMESTAMP,
+    references VARCHAR,
+    severity VARCHAR,
+    state VARCHAR,
+    project_id BIGINT,
+    issue_type VARCHAR,
+    rtype VARCHAR,
+    updated_at TIMESTAMP,
+    web_url VARCHAR,
+    closed_by VARCHAR,
+    closed_at TIMESTAMP
+)
+WITH (
+    format = 'PARQUET',
+    external_location = 's3a://test/warehouse/mydatabase/'
+);
 ```
-
-Try to create a schema using S3
-
-We are using the built in test datastrore `tpcds` to create tables and it will be auto-populated;
+If the path is right, it would have got all the rows in your Parquet files
 
 ```
-show schemas from tpcds;
-show tables  from tpcds.tiny;
-```
-
-```
-trino:default> CREATE SCHEMA hive.tpcds WITH (location = 's3a://test/warehouse/tpcds/');
-trino:default> CREATE TABLE tpcds.store_sales AS SELECT * FROM tpcds.tiny.store_sales;
-CREATE TABLE: 120527 rows
-
-Query 20220617_125702_00006_sqada, FINISHED, 3 nodes
-Splits: 14 total, 14 done (100.00%)
-20.24 [121K rows, 0B] [5.95K rows/s, 0B/s]
-
-```
-
-You can see that in S3 the files are written
-
-![filesins3](https://i.imgur.com/aEe7GzV.png)
-
-```
-trino:default> select count(*) from tpcds.store_sales;
- _col0  
---------
- 120527 
+select count(*) from mydatabase.mytable;
+ _col0 
+-------
+ 27748 
 (1 row)
-````
-
-You can see the queries getting executed via the Trino UI
-
-![trino_ui](https://i.imgur.com/HFXqMGc.png)
-
-## Handy commands
 
 ```
-kubectl apply -f hive/metastore-cfg.yaml && kubectl delete -f hive/hive-meta-store-standalone.yaml  && kubectl create -f hive/hive-meta-store-standalone.yaml
 
-kubectl apply -f trino/trino_cfg.yaml && kubectl delete -f trino/trino.yaml && kubectl create -f trino/trino.yaml
+Here is a screen shot
 
-kubectl   port-forward svc/trino 8080 
-kubectl port-forward svc/mino-test-minio-console 9001
+![trino](https://i.imgur.com/cK22KH8.png)
 
-kubectl exec -it trino-cli -- /bin/bash 
-/bin/trino --server trino:8080 --catalog hive --schema default
-```
 
-## Installing  Redash
 
-From <https://github.com/getredash/contrib-helm-chart>
 
-## Optional: Install Redash
 
-Redash is a GUI to execute  SQL queries using various Data sources. Trino is also supported. And it can be used to analyze data
-
-Minor changes below for proper installation
-
-```
-helm repo add redash https://getredash.github.io/contrib-helm-chart/
-
-Get the template instead of directly installing
-
-helm template  myredash -f redash/my-values.yaml  redash/redash >> redash/deployment.yaml
-
-and updated the following to latest,as Image pull error was there in older; Also made the passwords in my-value smaller as some erros 
-were coming
-
-- name: myredash-postgresql
- image: docker.io/bitnami/postgresql:14.4.0-debian-11-r1
-- name: redis
- image: docker.io/bitnami/redis:6.0.16-debian-11-r7
-```
-
-Once installed - Port forward to see the GUI
-
-```
-kubectl port-forward svc/myredash 8081:80
-```
-
-You can configure the Trino data source like below; and use redash for query execution and visualization
-
-![redash_config](https://i.imgur.com/2OS7zdz.png)
-
-Query Execution and Visualization
-
-![redash_visalization](https://i.imgur.com/pIRqHkp.png)
-
-Further tests are described here [More tests, Transactions, Update, CSV etc](testqueries.md)

@@ -8,7 +8,7 @@ data:
             </property>
            <property>
                 <name>fs.s3a.endpoint</name>
-                <value>http://10.244.1.14:9000</value>
+                <value>http://10.244.1.10:9000</value>
             </property>
             <property>
                 <name>fs.s3a.fast.upload</name>
